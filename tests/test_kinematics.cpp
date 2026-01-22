@@ -67,6 +67,9 @@ bool testClass1ForwardKinematics() {
                                            {-M_PI / 4, M_PI / 4, -M_PI / 4},
                                            {0.1, 0.2, -0.1}};
 
+    // TODO: Add expected solutions for verification
+    // Randomized rotational matrices, run IK and use FK to verify consistency
+
     try {
         RobotArchitecture arch;
         Class1Kinematics kin(arch);
@@ -81,7 +84,7 @@ bool testClass1ForwardKinematics() {
                       << ", " << theta[1] << ", " << theta[2] << "]\n";
 
             auto solutions = kin.solveFK(theta);
-            std::cout << "  Found " << solutions.size() << " solutions";
+            std::cout << " Found " << solutions.size() << " solutions";
 
             // Class I should find up to 8 solutions
             // For now, just check that we get some valid solutions
