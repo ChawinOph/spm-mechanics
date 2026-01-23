@@ -1,5 +1,12 @@
 # 3-RRR Spherical Parallel Mechanism Kinematics
 
+**Author:** Chawin Ophaswongse
+**Email:** oph.chawin@gmail.com
+**Date Created:** January 22, 2026
+**Repository:** https://github.com/ChawinOph/spm-mechanics
+
+---
+
 C++ implementation of forward and inverse kinematics for three classes of 3-RRR spherical parallel mechanisms with closed-form solutions, based on the research paper "Forward kinematics of three classes of 3-RRR spherical parallel mechanisms admitting closed-form solutions" (Mechanism and Machine Theory, 2024).
 
 ## Features
