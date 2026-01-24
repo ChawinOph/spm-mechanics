@@ -1,0 +1,20 @@
+# Python dependencies for SPM symbolic kinematics
+# Install with: pip install -r requirements.txt
+
+# Symbolic mathematics
+sympy>=1.12
+
+# Numerical computation
+numpy>=1.24
+
+# Visualization
+matplotlib>=3.7
+
+# Jupyter notebook
+jupyter>=1.0
+notebook>=7.0
+ipykernel>=6.0
+
+# Optional: 3D visualization
+# plotly>=5.0
+# ipywidgets>=8.0

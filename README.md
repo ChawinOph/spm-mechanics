@@ -1,8 +1,11 @@
-# 3-RRR Spherical Parallel Mechanism Kinematics
+# 3-RRR Spherical Parallel Mechanism
 
 **Author:** Chawin Ophaswongse
+
 **Email:** oph.chawin@gmail.com
+
 **Date Created:** January 22, 2026
+
 **Repository:** https://github.com/ChawinOph/spm-mechanics
 
 ---

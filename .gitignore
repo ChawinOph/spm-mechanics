@@ -59,3 +59,28 @@ test_results.xml
 # Documentation
 docs/html/
 docs/latex/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+.env
+*.egg-info/
+.eggs/
+dist/
+*.egg
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+notebooks/.ipynb_checkpoints/
+
+# Keep notebook files but ignore checkpoints
+!notebooks/*.ipynb
+!notebooks/requirements.txt
