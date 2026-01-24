@@ -30,8 +30,10 @@ C++ implementation of forward and inverse kinematics for three classes of 3-RRR 
 ## Project Structure
 
 ```
-kinematics_project/
+spm_project/
 ├── CMakeLists.txt
+├── README.md
+├── QUICKSTART.md
 ├── include/
 │   └── kinematics.h
 ├── src/
@@ -42,11 +44,13 @@ kinematics_project/
 │   └── utils.cpp
 ├── tests/
 │   └── test_kinematics.cpp
-├── .vscode/
-│   ├── tasks.json
-│   ├── launch.json
-│   └── settings.json
-└── README.md
+├── notebooks/                    # Python/Jupyter for symbolic math
+│   ├── requirements.txt
+│   └── symbolic_kinematics.ipynb
+└── .vscode/
+    ├── tasks.json
+    ├── launch.json
+    └── settings.json
 ```
 
 ## Prerequisites
@@ -176,6 +180,63 @@ cmake --build build
 cd build
 ctest --output-on-failure
 ```
+
+## Python/Jupyter Notebook for Symbolic Kinematics
+
+The `notebooks/` folder contains Jupyter notebooks for symbolic computation using SymPy. These are useful for:
+- Deriving and verifying kinematic equations
+- Visualizing mechanism configurations
+- Generating C++ code from symbolic formulas
+- Cross-validating numerical results
+
+### Python Prerequisites
+
+- Python 3.8 or higher
+- pip (Python package manager)
+
+### Installation
+
+```bash
+# Navigate to notebooks folder
+cd notebooks
+
+# Install required packages
+pip install -r requirements.txt
+```
+
+### Required Packages
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| sympy | >=1.12 | Symbolic mathematics |
+| numpy | >=1.24 | Numerical computation |
+| matplotlib | >=3.7 | Visualization and 3D plotting |
+| jupyter | >=1.0 | Jupyter notebook environment |
+| notebook | >=7.0 | Notebook interface |
+| ipykernel | >=6.0 | Python kernel for Jupyter |
+
+### Running the Notebook
+
+**Method 1: Command Line**
+```bash
+cd notebooks
+jupyter notebook symbolic_kinematics.ipynb
+```
+
+**Method 2: VS Code**
+1. Open `notebooks/symbolic_kinematics.ipynb` in VS Code
+2. Select Python kernel when prompted
+3. Run cells with `Shift+Enter`
+
+### Notebook Contents
+
+- **Rotation Matrices**: Rx, Ry, Rz implementations
+- **Rodrigues' Formula**: Axis-angle rotation
+- **v-vector Computation**: Correct formula derivation
+- **Agile Eye Configuration**: Class I specific setup
+- **Numerical Verification**: Test functions
+- **3D Visualization**: Mechanism plotting
+- **C++ Code Generation**: Ready-to-use formulas
 
 ## Deployment to Raspberry Pi
 
