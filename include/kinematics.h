@@ -15,10 +15,20 @@ using JointAngles = std::array<double, 3>;
 
 // Architecture parameters for 3-RRR spherical parallel mechanism
 struct RobotArchitecture {
-    std::array<double, 3> alpha_i1;  // Proximal link dimensions
-    std::array<double, 3> alpha_i2;  // Distal link dimensions
-    std::array<double, 3> beta_i1;   // Angles between base joint axes
-    std::array<double, 3> beta_i2;   // Angles between platform joint axes
+    // Platform joint position parameters
+    // Joint positions defined by rotation sequence: Rz(eta) * Rx(gamma) * [0,0,1]
+    std::array<double, 3> eta_i1;    // Base platform: rotation around z-axis (typically 0°, 120°, 240°)
+    std::array<double, 3> gamma_i1;  // Base platform: rotation around x-axis
+    std::array<double, 3> eta_i2;    // Moving platform: rotation around z-axis
+    std::array<double, 3> gamma_i2;  // Moving platform: rotation around x-axis
+
+    // Link angle parameters
+    std::array<double, 3> alpha_i1;  // Proximal link angles (from input axis to intermediate joint)
+    std::array<double, 3> alpha_i2;  // Distal link angles (from intermediate joint to output)
+
+    // Joint orientation parameters (legacy, may overlap with eta/gamma)
+    std::array<double, 3> beta_i1;   // Base joint orientation angles
+    std::array<double, 3> beta_i2;   // Moving platform orientation angles
 
     // Constructor with default Agile Eye parameters
     RobotArchitecture();
@@ -105,6 +115,12 @@ Matrix3x3 eulerAnglesToMatrix(const Vector3& euler);
 // Polynomial solvers
 std::vector<double> solveQuadratic(double a, double b, double c);
 std::vector<double> solveQuartic(double a, double b, double c, double d, double e);
+
+// Trigonometric equation solver
+// Solves: A*cos(theta) + B*sin(theta) = C
+// Uses tangent half-angle substitution: t = tan(theta/2)
+// Returns 0, 1, or 2 solutions for theta (in radians)
+std::vector<double> solveTrigEquation(double A, double B, double C);
 
 // Numerical comparisons
 bool isNearZero(double value, double tolerance = 1e-10);

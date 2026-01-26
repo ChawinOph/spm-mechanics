@@ -1,26 +1,19 @@
-#include "kinematics.h"
-#include <cmath>
 #include <algorithm>
+#include <cmath>
 #include <complex>
+
+#include "kinematics.h"
 
 namespace kinematics {
 namespace utils {
 
 Vector3 cross(const Vector3& a, const Vector3& b) {
-    return {
-        a[1] * b[2] - a[2] * b[1],
-        a[2] * b[0] - a[0] * b[2],
-        a[0] * b[1] - a[1] * b[0]
-    };
+    return {a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]};
 }
 
-double dot(const Vector3& a, const Vector3& b) {
-    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-}
+double dot(const Vector3& a, const Vector3& b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
 
-double norm(const Vector3& v) {
-    return std::sqrt(dot(v, v));
-}
+double norm(const Vector3& v) { return std::sqrt(dot(v, v)); }
 
 Vector3 normalize(const Vector3& v) {
     double n = norm(v);
@@ -32,16 +25,14 @@ Vector3 normalize(const Vector3& v) {
 
 Matrix3x3 rotationMatrix(const Vector3& w1, const Vector3& w2, const Vector3& w3) {
     // Construct rotation matrix from three orthonormal vectors
-    return {{{w1[0], w2[0], w3[0]},
-             {w1[1], w2[1], w3[1]},
-             {w1[2], w2[2], w3[2]}}};
+    return {{{w1[0], w2[0], w3[0]}, {w1[1], w2[1], w3[1]}, {w1[2], w2[2], w3[2]}}};
 }
 
 Vector3 matrixToEulerAngles(const Matrix3x3& R) {
     // Convert rotation matrix to ZYZ Euler angles
     double theta = std::acos(R[2][2]);
     double psi, phi;
-    
+
     if (std::abs(std::sin(theta)) > 1e-10) {
         psi = std::atan2(R[2][1], R[2][0]);
         phi = std::atan2(R[1][2], -R[0][2]);
@@ -49,26 +40,26 @@ Vector3 matrixToEulerAngles(const Matrix3x3& R) {
         psi = 0.0;
         phi = std::atan2(-R[0][1], R[0][0]);
     }
-    
+
     return {psi, theta, phi};
 }
 
 Matrix3x3 eulerAnglesToMatrix(const Vector3& euler) {
     // Convert ZYZ Euler angles to rotation matrix
     double psi = euler[0], theta = euler[1], phi = euler[2];
-    
+
     double c1 = std::cos(psi), s1 = std::sin(psi);
     double c2 = std::cos(theta), s2 = std::sin(theta);
     double c3 = std::cos(phi), s3 = std::sin(phi);
-    
-    return {{{c1*c2*c3 - s1*s3, -c1*c2*s3 - s1*c3, c1*s2},
-             {s1*c2*c3 + c1*s3, -s1*c2*s3 + c1*c3, s1*s2},
-             {-s2*c3,           s2*s3,             c2}}};
+
+    return {{{c1 * c2 * c3 - s1 * s3, -c1 * c2 * s3 - s1 * c3, c1 * s2},
+             {s1 * c2 * c3 + c1 * s3, -s1 * c2 * s3 + c1 * c3, s1 * s2},
+             {-s2 * c3, s2 * s3, c2}}};
 }
 
 std::vector<double> solveQuadratic(double a, double b, double c) {
     std::vector<double> solutions;
-    
+
     if (isNearZero(a)) {
         // Linear equation
         if (!isNearZero(b)) {
@@ -76,13 +67,13 @@ std::vector<double> solveQuadratic(double a, double b, double c) {
         }
         return solutions;
     }
-    
+
     double discriminant = b * b - 4 * a * c;
-    
+
     if (discriminant < -1e-10) {
         return solutions;  // No real solutions
     }
-    
+
     if (isNearZero(discriminant)) {
         solutions.push_back(-b / (2 * a));
     } else {
@@ -90,35 +81,35 @@ std::vector<double> solveQuadratic(double a, double b, double c) {
         solutions.push_back((-b + sqrt_disc) / (2 * a));
         solutions.push_back((-b - sqrt_disc) / (2 * a));
     }
-    
+
     return solutions;
 }
 
 std::vector<double> solveQuartic(double a, double b, double c, double d, double e) {
     // Ferrari's formula for quartic equation: ax^4 + bx^3 + cx^2 + dx + e = 0
     std::vector<double> solutions;
-    
+
     if (isNearZero(a)) {
         // Reduce to cubic or lower
         return {};  // Implement cubic solver if needed
     }
-    
+
     // Normalize coefficients
     double a3 = b / a;
     double a2 = c / a;
     double a1 = d / a;
     double a0 = e / a;
-    
+
     // Solve resolvent cubic: y^3 + b2*y^2 + b1*y + b0 = 0
     double b2 = -a2;
     double b1 = a1 * a3 - 4 * a0;
     double b0 = 4 * a0 * a2 - a1 * a1 - a0 * a3 * a3;
-    
+
     double p = b1 / 3.0 - b2 * b2 / 9.0;
     double q = b0 / 2.0 - b1 * b2 / 6.0 + b2 * b2 * b2 / 27.0;
-    
+
     double delta = q * q + p * p * p;
-    
+
     double y1;
     if (delta > 1e-10) {
         double sqrt_delta = std::sqrt(delta);
@@ -130,10 +121,10 @@ std::vector<double> solveQuartic(double a, double b, double c, double d, double 
         double alpha = std::acos(-q / r) / 3.0;
         y1 = 2.0 * std::cbrt(r) * std::cos(alpha) - b2 / 3.0;
     }
-    
+
     // Compute R, D, E
     double R = std::sqrt(a3 * a3 / 4.0 - a2 + y1);
-    
+
     double D, E;
     if (isNearZero(R)) {
         double temp = 3.0 * a3 * a3 / 4.0 - 2.0 * a2;
@@ -146,32 +137,84 @@ std::vector<double> solveQuartic(double a, double b, double c, double d, double 
         D = std::sqrt(temp + frac);
         E = std::sqrt(temp - frac);
     }
-    
+
     // Compute four solutions
-    std::vector<std::complex<double>> complex_sols = {
-        {-a3/4.0 + R/2.0 + D/2.0, 0.0},
-        {-a3/4.0 + R/2.0 - D/2.0, 0.0},
-        {-a3/4.0 - R/2.0 + E/2.0, 0.0},
-        {-a3/4.0 - R/2.0 - E/2.0, 0.0}
-    };
-    
+    std::vector<std::complex<double>> complex_sols = {{-a3 / 4.0 + R / 2.0 + D / 2.0, 0.0},
+                                                      {-a3 / 4.0 + R / 2.0 - D / 2.0, 0.0},
+                                                      {-a3 / 4.0 - R / 2.0 + E / 2.0, 0.0},
+                                                      {-a3 / 4.0 - R / 2.0 - E / 2.0, 0.0}};
+
     // Extract real solutions
     for (const auto& sol : complex_sols) {
         if (std::abs(sol.imag()) < 1e-10) {
             solutions.push_back(sol.real());
         }
     }
-    
+
     return solutions;
 }
 
-bool isNearZero(double value, double tolerance) {
-    return std::abs(value) < tolerance;
+bool isNearZero(double value, double tolerance) { return std::abs(value) < tolerance; }
+
+bool areEqual(double a, double b, double tolerance) { return isNearZero(a - b, tolerance); }
+
+std::vector<double> solveTrigEquation(double A, double B, double C) {
+    // Solves: A*cos(theta) + B*sin(theta) = C
+    // Using tangent half-angle substitution: t = tan(theta/2)
+    //   cos(theta) = (1 - t^2) / (1 + t^2)
+    //   sin(theta) = (2*t) / (1 + t^2)
+    // Leads to quadratic: (A + C)*t^2 - 2*B*t + (C - A) = 0
+    // Solution: t = [B ± sqrt(A^2 + B^2 - C^2)] / (A + C)
+    // Final: theta = 2*atan(t)
+
+    std::vector<double> solutions;
+
+    // Check existence condition: A^2 + B^2 >= C^2
+    double discriminant = A * A + B * B - C * C;
+
+    if (discriminant < -1e-10) {
+        return solutions;  // No solution exists
+    }
+
+    // Clamp small negative discriminant to zero
+    if (discriminant < 0) {
+        discriminant = 0;
+    }
+
+    double sqrt_disc = std::sqrt(discriminant);
+
+    // Handle special case: A + C ≈ 0
+    if (isNearZero(A + C)) {
+        if (isNearZero(B)) {
+            // Degenerate case: check if C - A ≈ 0 too
+            if (isNearZero(C - A)) {
+                // Infinite solutions (any theta works) - return theta = 0
+                solutions.push_back(0.0);
+            }
+            return solutions;
+        }
+        // Linear case: -2*B*t + (C - A) = 0  =>  t = (C - A) / (2*B)
+        double t = (C - A) / (2.0 * B);
+        solutions.push_back(2.0 * std::atan(t));
+        return solutions;
+    }
+
+    // Quadratic solution: t = [B ± sqrt(A^2 + B^2 - C^2)] / (A + C)
+    double t1 = (B + sqrt_disc) / (A + C);
+    double t2 = (B - sqrt_disc) / (A + C);
+
+    double theta1 = 2.0 * std::atan(t1);
+    double theta2 = 2.0 * std::atan(t2);
+
+    solutions.push_back(theta1);
+
+    // Add second solution only if distinct
+    if (!areEqual(theta1, theta2, 1e-10)) {
+        solutions.push_back(theta2);
+    }
+
+    return solutions;
 }
 
-bool areEqual(double a, double b, double tolerance) {
-    return isNearZero(a - b, tolerance);
-}
-
-} // namespace utils
-} // namespace kinematics
+}  // namespace utils
+}  // namespace kinematics
