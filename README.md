@@ -261,6 +261,9 @@ Based on the paper:
 Li, W., Zhang, S., Wang, B., Angeles, J., Gao, F., & Guo, W. (2024). 
 Forward kinematics of three classes of 3-RRR spherical parallel mechanisms 
 admitting closed-form solutions. Mechanism and Machine Theory, 201, 105751.
+
+S. Bai, “Optimum design of spherical parallel manipulators for a prescribed workspace,” Mechanism and Machine Theory, vol. 45, no. 2, pp. 200–211, Feb. 2010, doi: 10.1016/j.mechmachtheory.2009.06.007.
+
 ```
 
 ## License
