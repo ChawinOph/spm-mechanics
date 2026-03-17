@@ -86,11 +86,22 @@ cmake --build build
 # Run demo
 ./build/spm_demo          # Linux / macOS
 build\spm_demo.exe        # Windows
+
+# Run tests — suppress output on pass
+cd build && ctest --output-on-failure
+
+# Run tests — full printed output (timing + per-test results)
+cd build && ctest -V
+
+# Run test executable directly (all stdout visible)
+./build/tests/test_kinematics        # Linux / macOS
+build\tests\test_kinematics.exe      # Windows
 ```
 
 The build produces:
 - `libspm.a` — static library (`SPMModel` + FK solver)
 - `spm_demo` — demo executable
+- `tests/test_kinematics` — kinematics test executable
 
 ## Cross-Compilation for Raspberry Pi
 

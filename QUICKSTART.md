@@ -54,7 +54,18 @@ Or in VS Code: `Ctrl+Shift+P` → "CMake: Build" (or `Ctrl+Shift+B`).
 ### Run Tests
 
 ```bash
+# Run all tests (suppress output on pass)
 cd build && ctest --output-on-failure
+
+# Run with full printed output (timing, per-test results)
+cd build && ctest -V
+
+# Run only the kinematics test
+cd build && ctest -V -R KinematicsTest
+
+# Run the test executable directly (all printf/cout visible)
+./build/tests/test_kinematics        # Linux / macOS
+build\tests\test_kinematics.exe      # Windows
 ```
 
 ---
