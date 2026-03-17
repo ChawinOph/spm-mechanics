@@ -15,12 +15,10 @@
 // Helpers
 // ---------------------------------------------------------------------------
 
-static const float TOL     = 1e-4f;   // general tolerance
-static const float TOL_FK  = 1e-3f;   // FK round-trip tolerance (iterative solver)
+static const float TOL = 1e-6f;     // general tolerance
+static const float TOL_FK = 1e-6f;  // FK round-trip tolerance (iterative solver)
 
-static bool near(float a, float b, float tol = TOL) {
-    return fabsf(a - b) < tol;
-}
+static bool near(float a, float b, float tol = TOL) { return fabsf(a - b) < tol; }
 
 static bool matricesNear(const Matrix33f& A, const Matrix33f& B, float tol = TOL) {
     return near(A.m11, B.m11, tol) && near(A.m12, B.m12, tol) && near(A.m13, B.m13, tol) &&
@@ -51,7 +49,7 @@ static Matrix33f Ry(float a) {
 // ---------------------------------------------------------------------------
 
 static int g_passed = 0;
-static int g_total  = 0;
+static int g_total = 0;
 
 // RUN(fn) — execute one test function, print result + wall-clock time.
 //
@@ -77,16 +75,16 @@ static int g_total  = 0;
 //
 //  if (ok) g_passed++
 //      Only increment the pass counter on success.
-#define RUN(fn)                                                                             \
-    do {                                                                                    \
-        g_total++;                                                                          \
-        std::printf("  %-42s", #fn " ...");                                                 \
-        auto _t0 = std::chrono::high_resolution_clock::now();                              \
-        bool ok  = fn();                                                                    \
-        auto _t1 = std::chrono::high_resolution_clock::now();                              \
-        double _us = std::chrono::duration<double, std::micro>(_t1 - _t0).count();        \
-        std::printf("%s  %8.2f us\n", ok ? "PASS" : "FAIL", _us);                        \
-        if (ok) g_passed++;                                                                 \
+#define RUN(fn)                                                                    \
+    do {                                                                           \
+        g_total++;                                                                 \
+        std::printf("  %-42s", #fn " ...");                                        \
+        auto _t0 = std::chrono::high_resolution_clock::now();                      \
+        bool ok = fn();                                                            \
+        auto _t1 = std::chrono::high_resolution_clock::now();                      \
+        double _us = std::chrono::duration<double, std::micro>(_t1 - _t0).count(); \
+        std::printf("%s  %8.2f us\n", ok ? "PASS" : "FAIL", _us);                  \
+        if (ok) g_passed++;                                                        \
     } while (0)
 
 // ---------------------------------------------------------------------------
@@ -97,8 +95,7 @@ static bool test_solveQuadratic_two_roots() {
     // x² - 3x + 2 = 0  →  x = 2, 1
     QuadraticResultf r = solveQuadratic(1.f, -3.f, 2.f);
     if (!r.hasRealRoots) return false;
-    bool ok = (near(r.x1, 2.f) && near(r.x2, 1.f)) ||
-              (near(r.x1, 1.f) && near(r.x2, 2.f));
+    bool ok = (near(r.x1, 2.f) && near(r.x2, 1.f)) || (near(r.x1, 1.f) && near(r.x2, 2.f));
     return ok;
 }
 
@@ -169,7 +166,8 @@ static bool test_jacobian_valid_at_neutral() {
 
 static bool test_ik_identity() {
     SPMModel spm;
-    Matrix33f R; Matrix33f::Identity(&R);
+    Matrix33f R;
+    Matrix33f::Identity(&R);
     IKResult ik = spm.computeIK(R, false);
     for (int i = 0; i < SPM_LEGS; i++) {
         if (!ik.has_solution[i]) return false;
@@ -181,13 +179,14 @@ static bool test_ik_neutral_matches_stored() {
     // IK at identity should recover the stored neutral thetas
     SPMModel spm;
     if (!spm.is_initialized) return false;
-    Matrix33f R; Matrix33f::Identity(&R);
+    Matrix33f R;
+    Matrix33f::Identity(&R);
     IKResult ik = spm.computeIK(R, false);
     for (int i = 0; i < SPM_LEGS; i++) {
         if (!ik.has_solution[i]) return false;
         bool branch0_matches = near(ik.theta[i][0], spm.thetas_neutral[i], 1e-3f);
-        bool branch1_matches = (ik.num_solutions[i] > 1) &&
-                               near(ik.theta[i][1], spm.thetas_neutral[i], 1e-3f);
+        bool branch1_matches =
+            (ik.num_solutions[i] > 1) && near(ik.theta[i][1], spm.thetas_neutral[i], 1e-3f);
         if (!branch0_matches && !branch1_matches) return false;
     }
     return true;
@@ -238,15 +237,14 @@ static bool ik_fk_roundtrip(const Matrix33f& R_target, const char* label = "") {
     }
 
     float theta[SPM_LEGS];
-    for (int i = 0; i < SPM_LEGS; i++)
-        theta[i] = ik.theta[i][spm.theta_sol_indices[i]];
+    for (int i = 0; i < SPM_LEGS; i++) theta[i] = ik.theta[i][spm.theta_sol_indices[i]];
 
     // warm start: w_i were just set by computeIK above
     FKResult fk = spm.computeFK(theta, /*update_config=*/false, /*init_prev_sol=*/true);
 
     if (!fk.success) {
-        std::printf("    [%s] FK failed: success=%d cost=%.3e iters=%d\n",
-                    label, fk.success, (double)fk.cost, fk.iterations);
+        std::printf("    [%s] FK failed: success=%d cost=%.3e iters=%d\n", label, fk.success,
+                    (double)fk.cost, fk.iterations);
         return false;
     }
 
@@ -254,33 +252,28 @@ static bool ik_fk_roundtrip(const Matrix33f& R_target, const char* label = "") {
     if (!ok) {
         std::printf("    [%s] R mismatch (cost=%.3e):\n", label, (double)fk.cost);
         std::printf("      target  [%.4f %.4f %.4f | %.4f %.4f %.4f | %.4f %.4f %.4f]\n",
-            (double)R_target.m11,(double)R_target.m12,(double)R_target.m13,
-            (double)R_target.m21,(double)R_target.m22,(double)R_target.m23,
-            (double)R_target.m31,(double)R_target.m32,(double)R_target.m33);
+                    (double)R_target.m11, (double)R_target.m12, (double)R_target.m13,
+                    (double)R_target.m21, (double)R_target.m22, (double)R_target.m23,
+                    (double)R_target.m31, (double)R_target.m32, (double)R_target.m33);
         std::printf("      fk.R    [%.4f %.4f %.4f | %.4f %.4f %.4f | %.4f %.4f %.4f]\n",
-            (double)fk.R.m11,(double)fk.R.m12,(double)fk.R.m13,
-            (double)fk.R.m21,(double)fk.R.m22,(double)fk.R.m23,
-            (double)fk.R.m31,(double)fk.R.m32,(double)fk.R.m33);
+                    (double)fk.R.m11, (double)fk.R.m12, (double)fk.R.m13, (double)fk.R.m21,
+                    (double)fk.R.m22, (double)fk.R.m23, (double)fk.R.m31, (double)fk.R.m32,
+                    (double)fk.R.m33);
     }
     return ok;
 }
 
 static bool test_fk_at_identity() {
-    Matrix33f R; Matrix33f::Identity(&R);
+    Matrix33f R;
+    Matrix33f::Identity(&R);
     return ik_fk_roundtrip(R, "identity");
 }
 
-static bool test_fk_rz_10deg() {
-    return ik_fk_roundtrip(Rz(10.f * (float)M_PI / 180.f), "Rz10");
-}
+static bool test_fk_rz_10deg() { return ik_fk_roundtrip(Rz(10.f * (float)M_PI / 180.f), "Rz10"); }
 
-static bool test_fk_rx_10deg() {
-    return ik_fk_roundtrip(Rx(10.f * (float)M_PI / 180.f), "Rx10");
-}
+static bool test_fk_rx_10deg() { return ik_fk_roundtrip(Rx(10.f * (float)M_PI / 180.f), "Rx10"); }
 
-static bool test_fk_ry_10deg() {
-    return ik_fk_roundtrip(Ry(10.f * (float)M_PI / 180.f), "Ry10");
-}
+static bool test_fk_ry_10deg() { return ik_fk_roundtrip(Ry(10.f * (float)M_PI / 180.f), "Ry10"); }
 
 static bool test_fk_combined() {
     Matrix33f R = Rz(0.1f) * Rx(0.1f);
@@ -298,8 +291,7 @@ static bool test_fk_warm_start() {
     }
 
     float theta[SPM_LEGS];
-    for (int i = 0; i < SPM_LEGS; i++)
-        theta[i] = ik.theta[i][spm.theta_sol_indices[i]];
+    for (int i = 0; i < SPM_LEGS; i++) theta[i] = ik.theta[i][spm.theta_sol_indices[i]];
 
     // Cold start first to populate fk result state
     FKResult fk1 = spm.computeFK(theta, /*update_config=*/true, /*init_prev_sol=*/false);
@@ -334,9 +326,8 @@ static bool test_jacobian_b_diagonal() {
     spm.computeIK(Rx(0.1f), /*update_config=*/true);
     VelJacobian jac = spm.computeVelJacobian();
     if (!jac.is_valid) return false;
-    return near(jac.B_mat.m12, 0.f) && near(jac.B_mat.m13, 0.f) &&
-           near(jac.B_mat.m21, 0.f) && near(jac.B_mat.m23, 0.f) &&
-           near(jac.B_mat.m31, 0.f) && near(jac.B_mat.m32, 0.f);
+    return near(jac.B_mat.m12, 0.f) && near(jac.B_mat.m13, 0.f) && near(jac.B_mat.m21, 0.f) &&
+           near(jac.B_mat.m23, 0.f) && near(jac.B_mat.m31, 0.f) && near(jac.B_mat.m32, 0.f);
 }
 
 // ---------------------------------------------------------------------------
