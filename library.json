@@ -14,6 +14,6 @@
   "frameworks": "arduino",
   "platforms": "*",
   "build": {
-    "srcFilter": "+<src/*.cpp> -<src/main.cpp>"
+    "srcFilter": "+<*.cpp> -<main.cpp>"
   }
 }
