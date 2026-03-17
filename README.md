@@ -171,11 +171,15 @@ https://doi.org/10.1016/j.mechatronics.2021.102625
 S. Bai, "Optimum design of spherical parallel manipulators for a prescribed workspace,"
 Mechanism and Machine Theory, vol. 45, no. 2, pp. 200–211, Feb. 2010.
 https://doi.org/10.1016/j.mechmachtheory.2009.06.007
+
+Li, Wei, Shuai Zhang, Binyan Wang, Jorge Angeles, Feng Gao, and Weizhong Guo. “Forward Kinematics of Three Classes of 3-RRR Spherical Parallel Mechanisms Admitting Closed-Form Solutions.” 
+Mechanism and Machine Theory 201 (October 2024): 105751. https://doi.org/10.1016/j.mechmachtheory.2024.105751.
 ```
 
 ## License
 
-[Specify your license here]
+Licensed under the [Apache License 2.0](LICENSE).
+Copyright (c) 2026 Chawin Ophaswongse
 
 ## Contact
 
