@@ -6,26 +6,20 @@
 
 **Date Created:** January 22, 2026
 
+**Last Modified:** March 17, 2026
+
 **Repository:** https://github.com/ChawinOph/spm-mechanics
 
 ---
 
-C++ implementation of forward and inverse kinematics for three classes of 3-RRR spherical parallel mechanisms with closed-form solutions, based on the research paper "Forward kinematics of three classes of 3-RRR spherical parallel mechanisms admitting closed-form solutions" (Mechanism and Machine Theory, 2024).
+C++ implementation of forward and inverse kinematics for a Coaxial Input 3-RRR spherical parallel mechanism (Agile Eye-type), with a Python/Jupyter companion for symbolic derivation and numerical verification.
 
 ## Features
 
-- **Class I**: Orthogonal moving platform with 90° distal links (includes Agile Eye)
-  - Quadratic or linear univariate polynomial solutions
-  
-- **Class II**: Coplanar moving platform with 90° distal links
-  - Quartic univariate polynomial solutions
-  
-- **Class III**: Coaxial input axes with 90° proximal and distal links
-  - Quartic univariate polynomial solutions
-
-- Efficient closed-form solutions (no iterative methods required)
-- Optimized for embedded systems (Raspberry Pi deployment)
-- Comprehensive utility functions for vector/matrix operations
+- **Inverse Kinematics** — closed-form per-leg solution via trigonometric equation solver (Weierstrass half-angle substitution); up to 2 solutions per leg
+- **Forward Kinematics** — iterative trust-region dogleg solver minimising a 9-equation constraint system; recovers rotation matrix via polar decomposition
+- **Velocity Jacobian** — analytical $J = A^{-1}B$ from the differentiated constraint equations
+- **Embedded-friendly** — no STL containers in the solver, fixed-size float arrays, Arduino-compatible `mMath.h`
 
 ## Project Structure
 
@@ -33,247 +27,156 @@ C++ implementation of forward and inverse kinematics for three classes of 3-RRR 
 spm_project/
 ├── CMakeLists.txt
 ├── README.md
-├── QUICKSTART.md
 ├── include/
-│   └── kinematics.h
+│   ├── mMath.h          # Quadratic & trigonometric equation solvers
+│   ├── mVect.h          # mVector2/3/4 templated vector types
+│   ├── mMatrix.h        # Matrix22/33/44 templated matrix types
+│   └── mSPMModel.h      # SPMModel class, SPMArch, IKResult, FKResult, VelJacobian
 ├── src/
-│   ├── main.cpp
-│   ├── forward_kinematics.cpp
-│   ├── inverse_kinematics.cpp
-│   ├── kinematics.cpp
-│   └── utils.cpp
+│   ├── mSPMModel.cpp    # SPMModel implementation + internal FK dogleg solver
+│   └── main.cpp         # Demo entry point
 ├── tests/
-│   └── test_kinematics.cpp
-├── notebooks/                    # Python/Jupyter for symbolic math
-│   ├── requirements.txt
-│   └── symbolic_kinematics.ipynb
-└── .vscode/
-    ├── tasks.json
-    ├── launch.json
-    └── settings.json
+│   └── test_kinematics.cpp   # (legacy – pending update)
+└── notebooks/
+    ├── requirements.txt
+    └── spm_kinematics.ipynb  # Symbolic derivation, IK/FK verification, visualisation
+```
+
+## Key API
+
+```cpp
+#include "mSPMModel.h"
+
+SPMModel spm;                          // default Coaxial Input SPM geometry
+
+// Inverse kinematics
+Matrix33f R_des = ...;
+IKResult ik = spm.computeIK(R_des, /*update_config=*/true);
+
+// Select solution branch per leg (0 or 1)
+spm.theta_sol_indices[0] = 0;
+
+// Velocity Jacobian  (requires update_config IK first)
+VelJacobian jac = spm.computeVelJacobian();
+
+// Forward kinematics
+FKResult fk = spm.computeFK(spm.theta_i,
+                             /*update_config=*/true,
+                             /*init_prev_sol=*/true);
+// fk.R        — recovered rotation matrix R ∈ SO(3)
+// fk.w[i]     — solved w_i vectors in world frame
+// fk.success  — true if solver converged
+// fk.cost     — final cost ½‖F(x*)‖² (should be ~0)
 ```
 
 ## Prerequisites
 
-### Development Machine
 - C++17 compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
 - CMake 3.10 or higher
-- VS Code with extensions:
-  - C/C++ (Microsoft)
-  - CMake Tools (Microsoft)
-  - Remote - SSH (for Raspberry Pi deployment)
 
-### Raspberry Pi Target
-- Raspberry Pi 3/4/5 with Raspbian OS
-- GCC compiler (pre-installed)
-- CMake: `sudo apt install cmake`
-
-## Building on Development Machine
-
-### Method 1: Using VS Code (Recommended)
-
-1. Open the project folder in VS Code
-2. Press `Ctrl+Shift+B` to build (or use Command Palette: "Tasks: Run Build Task")
-3. Press `F5` to build and debug
-
-### Method 2: Using Command Line
+## Building
 
 ```bash
 # Configure
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+cmake -B build -S .
 
 # Build
-cmake --build build --config Release -j4
+cmake --build build
 
-# Run
-./build/kinematics_demo
+# Run demo
+./build/spm_demo          # Linux / macOS
+build\spm_demo.exe        # Windows
 ```
+
+The build produces:
+- `libspm.a` — static library (`SPMModel` + FK solver)
+- `spm_demo` — demo executable
 
 ## Cross-Compilation for Raspberry Pi
 
-### Option 1: Native Compilation (Simplest)
+### Option 1: Native (simplest)
 
-Use VS Code Remote-SSH to connect directly to Raspberry Pi and build there:
+SSH into the Pi and build directly:
+```bash
+sudo apt install cmake g++
+git clone <repo>
+cd spm_project
+cmake -B build -S .
+cmake --build build
+```
 
-1. Install "Remote - SSH" extension in VS Code
-2. Connect to Pi: `ssh pi@<raspberry-pi-ip>`
-3. Open project folder on Pi
-4. Build using standard commands
-
-### Option 2: Cross-Compilation Toolchain
+### Option 2: Cross-compile toolchain
 
 Create `cmake/raspberry-pi.cmake`:
-
 ```cmake
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR arm)
-
-set(CMAKE_C_COMPILER arm-linux-gnueabihf-gcc)
+set(CMAKE_C_COMPILER   arm-linux-gnueabihf-gcc)
 set(CMAKE_CXX_COMPILER arm-linux-gnueabihf-g++)
-
 set(CMAKE_FIND_ROOT_PATH /usr/arm-linux-gnueabihf)
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 ```
-
-Then build:
+Then:
 ```bash
 cmake -B build-pi -S . -DCMAKE_TOOLCHAIN_FILE=cmake/raspberry-pi.cmake
 cmake --build build-pi
+scp build-pi/spm_demo pi@<pi-ip>:~/
 ```
 
-## Usage Example
+## Python / Jupyter Notebook
 
-```cpp
-#include "kinematics.h"
+The `notebooks/spm_kinematics.ipynb` notebook contains:
 
-int main() {
-    // Create Agile Eye configuration (Class I)
-    kinematics::RobotArchitecture arch;
-    kinematics::Class1Kinematics robot(arch);
-    
-    // Input joint angles (radians)
-    kinematics::JointAngles theta = {-0.3, -0.5, -0.4};
-    
-    // Solve forward kinematics
-    auto solutions = robot.solveFK(theta);
-    
-    // Process solutions
-    for (const auto& sol : solutions) {
-        if (sol.is_valid) {
-            // Use sol.rotation_matrix
-        }
-    }
-    
-    return 0;
-}
-```
+- Symbolic derivation of joint axes, proximal link parameterisation, and constraint equations
+- IK and FK solvers (scipy dogleg) with numerical verification
+- Velocity Jacobian derivation
+- 3-D visualisation of SPM configurations
 
-## Performance
-
-Typical performance on Raspberry Pi 4:
-- Class I FK: ~500-700 μs per solution
-- Class II FK: ~600-800 μs per solution
-- Class III FK: ~700-900 μs per solution
-
-(Significantly faster than iterative methods which require 2-5 ms)
-
-## VS Code Keyboard Shortcuts
-
-- `Ctrl+Shift+B`: Build project
-- `F5`: Build and debug
-- `Ctrl+Shift+P`: Command palette
-- `Ctrl+``: Toggle terminal
-- `F9`: Toggle breakpoint
-- `F10`: Step over
-- `F11`: Step into
-
-## Testing
+### Setup
 
 ```bash
-# Build with tests
-cmake -B build -S . -DBUILD_TESTING=ON
-cmake --build build
-
-# Run tests
-cd build
-ctest --output-on-failure
-```
-
-## Python/Jupyter Notebook for Symbolic Kinematics
-
-The `notebooks/` folder contains Jupyter notebooks for symbolic computation using SymPy. These are useful for:
-- Deriving and verifying kinematic equations
-- Visualizing mechanism configurations
-- Generating C++ code from symbolic formulas
-- Cross-validating numerical results
-
-### Python Prerequisites
-
-- Python 3.8 or higher
-- pip (Python package manager)
-
-### Installation
-
-```bash
-# Navigate to notebooks folder
 cd notebooks
-
-# Install required packages
 pip install -r requirements.txt
+jupyter notebook spm_kinematics.ipynb
 ```
 
-### Required Packages
+| Package | Purpose |
+|---|---|
+| `numpy` | Numerical computation |
+| `scipy` | FK dogleg solver (`scipy.optimize.minimize`) |
+| `sympy` | Symbolic derivation |
+| `matplotlib` | 3-D visualisation |
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| sympy | >=1.12 | Symbolic mathematics |
-| numpy | >=1.24 | Numerical computation |
-| matplotlib | >=3.7 | Visualization and 3D plotting |
-| jupyter | >=1.0 | Jupyter notebook environment |
-| notebook | >=7.0 | Notebook interface |
-| ipykernel | >=6.0 | Python kernel for Jupyter |
+## VS Code Shortcuts
 
-### Running the Notebook
-
-**Method 1: Command Line**
-```bash
-cd notebooks
-jupyter notebook symbolic_kinematics.ipynb
-```
-
-**Method 2: VS Code**
-1. Open `notebooks/symbolic_kinematics.ipynb` in VS Code
-2. Select Python kernel when prompted
-3. Run cells with `Shift+Enter`
-
-### Notebook Contents
-
-- **Rotation Matrices**: Rx, Ry, Rz implementations
-- **Rodrigues' Formula**: Axis-angle rotation
-- **v-vector Computation**: Correct formula derivation
-- **Agile Eye Configuration**: Class I specific setup
-- **Numerical Verification**: Test functions
-- **3D Visualization**: Mechanism plotting
-- **C++ Code Generation**: Ready-to-use formulas
-
-## Deployment to Raspberry Pi
-
-1. **Transfer executable**:
-   ```bash
-   scp build/kinematics_demo pi@<pi-ip>:~/
-   ```
-
-2. **SSH and run**:
-   ```bash
-   ssh pi@<pi-ip>
-   ./kinematics_demo
-   ```
-
-3. **Set up as service** (optional):
-   Create `/etc/systemd/system/kinematics.service`
+| Shortcut | Action |
+|---|---|
+| `Ctrl+Shift+B` | Build project |
+| `F5` | Build and debug |
+| `Ctrl+Shift+P` | Command palette |
+| `F9` | Toggle breakpoint |
+| `F10` | Step over |
+| `F11` | Step into |
 
 ## References
 
-Based on the paper:
 ```
-Li, W., Zhang, S., Wang, B., Angeles, J., Gao, F., & Guo, W. (2024). 
-Forward kinematics of three classes of 3-RRR spherical parallel mechanisms 
-admitting closed-form solutions. Mechanism and Machine Theory, 201, 105751.
+Tursynbek, Iliyas, and Almas Shintemirov. "Infinite Rotational Motion Generation and
+Analysis of a Spherical Parallel Manipulator with Coaxial Input Axes."
+Mechatronics 78 (October 2021): 102625.
+https://doi.org/10.1016/j.mechatronics.2021.102625
 
-S. Bai, “Optimum design of spherical parallel manipulators for a prescribed workspace,” Mechanism and Machine Theory, vol. 45, no. 2, pp. 200–211, Feb. 2010, doi: 10.1016/j.mechmachtheory.2009.06.007.
-
+S. Bai, "Optimum design of spherical parallel manipulators for a prescribed workspace,"
+Mechanism and Machine Theory, vol. 45, no. 2, pp. 200–211, Feb. 2010.
+https://doi.org/10.1016/j.mechmachtheory.2009.06.007
 ```
 
 ## License
 
 [Specify your license here]
 
-## Contributing
-
-[Contribution guidelines]
-
 ## Contact
 
-[Your contact information]
+Chawin Ophaswongse — oph.chawin@gmail.com

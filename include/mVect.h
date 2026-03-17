@@ -4,8 +4,11 @@
 #define _USE_MATH_DEFINES
 
 #include <math.h>
+#ifdef IOSTREAM
 #include <iostream>
-using namespace std;
+#endif
+//using namespace std;
+
 
 #ifndef MV_POINT_ELEM_ZERO
 #define MV_POINT_ELEM_ZERO		1e-6
@@ -26,7 +29,7 @@ public:
 
 	mArray2(SCALAR _x, SCALAR2 _y)
 		: x(_x), y(_y) { }
-
+#ifdef IOSTREAM
 	friend ostream& operator << (ostream& os, mArray2<SCALAR, SCALAR2>& m) 
 	{
 		return os << m.x << " " << m.y;
@@ -36,7 +39,7 @@ public:
 	{
 		return is >> m.x >> m.y;
 	}
-
+#endif
 	// unary -
 	mArray2<SCALAR, SCALAR2> operator - ( ) const 
 	{
@@ -81,7 +84,7 @@ public:
 
 	mArray3(SCALAR _x, SCALAR2 _y, SCALAR3 _z)
 		: x(_x), y(_y), z(_z) { }
-
+#ifdef IOSTREAM
 	friend ostream& operator << (ostream& os, mArray3<SCALAR, SCALAR2, SCALAR3>& m) 
 	{
 		return os << m.x << " " << m.y << " " << m.z;
@@ -91,6 +94,7 @@ public:
 	{
 		return is >> m.x >> m.y >> m.z;
 	}
+#endif
 	// unary -
 	mArray3<SCALAR, SCALAR2, SCALAR3> operator - ( ) const 
 	{
@@ -136,7 +140,7 @@ public:
 
 	mArray4(SCALAR _x, SCALAR2 _y, SCALAR3 _z, SCALAR4 _w)
 		: x(_x), y(_y), z(_z), w(_w) { }
-
+#ifdef IOSTREAM
 	friend ostream& operator << (ostream& os, mArray4<SCALAR, SCALAR2, SCALAR3, SCALAR4>& m) 
 	{
 		return os << m.x << " " << m.y << " " << m.z << " " << m.w;
@@ -146,6 +150,7 @@ public:
 	{
 		return is >> m.x >> m.y >> m.z >> m.w;
 	}
+#endif
 	// unary -
 	mArray4<SCALAR, SCALAR2, SCALAR3, SCALAR4> operator - ( ) const 
 	{
@@ -187,7 +192,7 @@ public:
 
 	mVector2(SCALAR _x, SCALAR _y)
 		: x(_x), y(_y) { }
-
+#ifdef IOSTREAM
 	friend ostream& operator << (ostream& os, mVector2<SCALAR>& m) 
 	{
 		return os << m.x << " " << m.y;
@@ -197,7 +202,7 @@ public:
 	{
 		return is >> m.x >> m.y;
 	}
-
+#endif
 	// unary -
 	mVector2<SCALAR> operator - ( ) const 
 	{
@@ -315,7 +320,7 @@ public:
 
 	mVector3(SCALAR _x, SCALAR _y, SCALAR _z)
 		: x(_x), y(_y), z(_z) { }
-
+#ifdef IOSTREAM
 	friend ostream& operator << (ostream& os, mVector3<SCALAR>& m) 
 	{
 		return os << m.x << " " << m.y << " " << m.z;
@@ -325,6 +330,7 @@ public:
 	{
 		return is >> m.x >> m.y >> m.z;
 	}
+	#endif
 	// SubScript
 	SCALAR& operator[] (unsigned int i)
 	{
@@ -438,7 +444,7 @@ public:
 
 	mVector4(SCALAR _x, SCALAR _y, SCALAR _z, SCALAR _w)
 		: x(_x), y(_y), z(_z), w(_w) { }
-
+#ifdef IOSTREAM
 	friend ostream& operator << (ostream& os, mVector4<SCALAR>& m) 
 	{
 		return os << m.x << " " << m.y << " " << m.z << " " << m.w;
@@ -448,7 +454,7 @@ public:
 	{
 		return is >> m.x >> m.y >> m.z >> m.w;
 	}
-
+#endif
 	//
 	SCALAR& operator[] (unsigned int i)
 	{
