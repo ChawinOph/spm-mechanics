@@ -1,0 +1,19 @@
+{
+  "name": "spm-mechanics",
+  "version": "1.0.0",
+  "description": "Kinematics library for 3-RRR Spherical Parallel Mechanism (SPM)",
+  "keywords": ["spm", "kinematics", "robotics", "spherical parallel mechanism"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ChawinOph/spm-mechanics.git"
+  },
+  "authors": {
+    "name": "ChawinOph"
+  },
+  "license": "Apache-2.0",
+  "frameworks": "arduino",
+  "platforms": "*",
+  "build": {
+    "srcFilter": "+<src/*.cpp> -<src/main.cpp>"
+  }
+}
