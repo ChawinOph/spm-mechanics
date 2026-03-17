@@ -45,3 +45,12 @@ add_executable(spm_demo src/main.cpp)
 # Also propagates spm's PUBLIC include directories, so main.cpp
 # can #include "mSPMModel.h" without any extra include_directories call.
 target_link_libraries(spm_demo spm)
+
+# ── tests ─────────────────────────────────────────────────────────────────────
+
+# Enable CTest integration (required before add_test() calls take effect).
+enable_testing()
+
+# Pull in tests/CMakeLists.txt.  The 'spm' target is already defined above,
+# so test_kinematics can link against it without any extra configuration.
+add_subdirectory(tests)

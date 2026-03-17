@@ -254,6 +254,166 @@ static FKSolverOut fk_solve(const FKProblem& P, const float x0[9])
     return out;
 }
 
+// ---------------------------------------------------------------------------
+// SVD-based polar decomposition  (replaces Newton iteration)
+// ---------------------------------------------------------------------------
+//
+// Given M (3×3), compute the nearest rotation R ∈ SO(3) via:
+//   M = U · Σ · V^T   →   R = U · V^T   (with det-correction)
+//
+// Algorithm
+// ─────────
+// 1. Form B = M^T M  (symmetric PSD, 3×3).
+// 2. Jacobi-diagonalise B: accumulate V so that V^T B V = diag(σ²).
+//    Each sweep finds the largest off-diagonal entry |B[p][q]| and
+//    zeroes it with a Givens rotation.  Convergence is quadratic and
+//    typically needs ≤ 10 sweeps for 3×3.
+// 3. σ_i = sqrt(B[i][i]) after diagonalisation.
+// 4. U columns: u_j = M v_j / σ_j  (normalised via the 2-norm of M v_j,
+//    which equals σ_j when v_j is a unit eigenvector of B).
+//    Near-zero σ_j are treated as zero (zero column in U).
+// 5. R = U V^T.  If det(R) = −1 (a reflection), flip the column of U
+//    for the smallest σ and recompute — this gives the nearest SO(3) matrix.
+//
+// Why SVD is better than Newton here
+// ────────────────────────────────────
+// The default SPM geometry has w_i0 nearly coplanar (z ≈ cos 85° ≈ 0.087),
+// making σ_min(W_i0) ≈ 0.023.  The Newton polar iteration maps each
+// singular value σ → (σ + 1/σ)/2 and needs ~8 steps to pull σ = 0.023
+// up to 1; with only 5 steps the result was σ ≈ 1.6 (visible as m33 > 1).
+// SVD has no such dependence on the condition number.
+
+// ── Jacobi SVD ───────────────────────────────────────────────────────────────
+
+// Compute SVD of a row-major 3×3 matrix M:
+//   M = U · diag(s) · V^T
+// U and V are orthogonal (columns are eigenvectors / left/right singular
+// vectors respectively).  s[i] ≥ 0.  Neither U nor V is guaranteed to
+// have determinant +1 — the caller handles the SO(3) correction.
+static void svd3x3(const float M[3][3],
+                   float U[3][3], float s[3], float V[3][3])
+{
+    // ── Step 1: B = M^T M  (symmetric PSD) ──────────────────────────────────
+    float B[3][3];
+    for (int r = 0; r < 3; r++)
+        for (int c = 0; c < 3; c++) {
+            float acc = 0.f;
+            for (int k = 0; k < 3; k++) acc += M[k][r] * M[k][c];
+            B[r][c] = acc;
+        }
+
+    // ── Step 2: Jacobi diagonalisation of B, V accumulates eigenvectors ─────
+    // Initialise V = I₃
+    float Vm[3][3] = {{1.f,0.f,0.f},{0.f,1.f,0.f},{0.f,0.f,1.f}};
+
+    for (int sweep = 0; sweep < 30; ++sweep) {
+
+        // Find index (p,q) of the largest off-diagonal |B[p][q]|
+        int p = 0, q = 1;
+        float maxOff = fabsf(B[0][1]);
+        if (fabsf(B[0][2]) > maxOff) { maxOff = fabsf(B[0][2]); p = 0; q = 2; }
+        if (fabsf(B[1][2]) > maxOff) { maxOff = fabsf(B[1][2]); p = 1; q = 2; }
+        if (maxOff < 1e-12f) break;  // converged
+
+        // Jacobi angle: choose t = tan θ to zero B[p][q]
+        //   τ = (B[q][q] - B[p][p]) / (2 B[p][q])
+        //   t = sign(τ) / (|τ| + sqrt(1 + τ²))
+        float tau = (B[q][q] - B[p][p]) / (2.f * B[p][q]);
+        float t   = (tau >= 0.f) ?  1.f / ( tau + sqrtf(1.f + tau*tau))
+                                 :  1.f / ( tau - sqrtf(1.f + tau*tau));
+        float c = 1.f / sqrtf(1.f + t*t);   // cos θ
+        float sv = t * c;                     // sin θ  ('sv' avoids clash with s[])
+
+        // Symmetric update: B ← Jᵀ B J  (only 5 entries change)
+        float Bpp = B[p][p], Bqq = B[q][q], Bpq = B[p][q];
+        B[p][p] = Bpp - t * Bpq;   // diagonal pp
+        B[q][q] = Bqq + t * Bpq;   // diagonal qq
+        B[p][q] = B[q][p] = 0.f;   // off-diagonal zeroed
+        for (int r = 0; r < 3; r++) {
+            if (r == p || r == q) continue;
+            float Brp = B[r][p], Brq = B[r][q];
+            B[r][p] = B[p][r] = c * Brp - sv * Brq;
+            B[r][q] = B[q][r] = sv * Brp +  c * Brq;
+        }
+
+        // Accumulate V ← V · J
+        for (int r = 0; r < 3; r++) {
+            float Vrp = Vm[r][p], Vrq = Vm[r][q];
+            Vm[r][p] =  c * Vrp - sv * Vrq;
+            Vm[r][q] = sv * Vrp +  c * Vrq;
+        }
+    }
+
+    // ── Step 3: singular values and V ────────────────────────────────────────
+    for (int i = 0; i < 3; i++) {
+        s[i] = sqrtf(fabsf(B[i][i]));
+        for (int r = 0; r < 3; r++) V[r][i] = Vm[r][i];
+    }
+
+    // ── Step 4: U columns  u_j = M v_j / σ_j  ───────────────────────────────
+    // ||M v_j|| = σ_j when v_j is a unit right singular vector, so normalising
+    // by the Euclidean norm of M v_j is equivalent and avoids division by σ_j.
+    for (int j = 0; j < 3; j++) {
+        // col = M * v_j
+        float col[3] = {0.f, 0.f, 0.f};
+        for (int r = 0; r < 3; r++)
+            for (int k = 0; k < 3; k++)
+                col[r] += M[r][k] * Vm[k][j];
+
+        float norm = sqrtf(col[0]*col[0] + col[1]*col[1] + col[2]*col[2]);
+        float inv  = (norm > 1e-10f) ? 1.f / norm : 0.f;
+        U[0][j] = col[0] * inv;
+        U[1][j] = col[1] * inv;
+        U[2][j] = col[2] * inv;
+    }
+}
+
+// ── 3×3 determinant (row-major) ──────────────────────────────────────────────
+static float det3(const float A[3][3]) {
+    return A[0][0] * (A[1][1]*A[2][2] - A[1][2]*A[2][1])
+          -A[0][1] * (A[1][0]*A[2][2] - A[1][2]*A[2][0])
+          +A[0][2] * (A[1][0]*A[2][1] - A[1][1]*A[2][0]);
+}
+
+// ── Polar factor: nearest SO(3) matrix to M ──────────────────────────────────
+//
+//   R = U V^T
+//
+// If det(U V^T) = −1 (a reflection rather than a rotation), flip the column
+// of U with the smallest singular value — this minimises the change to U while
+// making det = +1.
+static void polar3(const float M[3][3], Matrix33f& R)
+{
+    float U[3][3], s[3], V[3][3];
+    svd3x3(M, U, s, V);
+
+    // R = U · V^T
+    float Rt[3][3];
+    for (int r = 0; r < 3; r++)
+        for (int c = 0; c < 3; c++) {
+            float acc = 0.f;
+            for (int k = 0; k < 3; k++) acc += U[r][k] * V[c][k];  // V^T[k][c] = V[c][k]
+            Rt[r][c] = acc;
+        }
+
+    // det-correction: if det = −1, flip the U column for the smallest σ
+    if (det3(Rt) < 0.f) {
+        int minIdx = (s[0] < s[1]) ? 0 : 1;
+        if (s[2] < s[minIdx]) minIdx = 2;
+        for (int r = 0; r < 3; r++) U[r][minIdx] = -U[r][minIdx];
+        for (int r = 0; r < 3; r++)
+            for (int c = 0; c < 3; c++) {
+                float acc = 0.f;
+                for (int k = 0; k < 3; k++) acc += U[r][k] * V[c][k];
+                Rt[r][c] = acc;
+            }
+    }
+
+    R.m11=Rt[0][0]; R.m12=Rt[0][1]; R.m13=Rt[0][2];
+    R.m21=Rt[1][0]; R.m22=Rt[1][1]; R.m23=Rt[1][2];
+    R.m31=Rt[2][0]; R.m32=Rt[2][1]; R.m33=Rt[2][2];
+}
+
 } // anonymous namespace
 
 // ---------------------------------------------------------------------------
@@ -585,18 +745,13 @@ FKResult SPMModel::computeFK(const float theta[SPM_LEGS],
         M.m33 += sol.x[3*i+2] * w_i0[i].z;
     }
 
-    // Newton polar decomposition: R_new = (R + R^{-T}) * 0.5  (5 iterations)
-    Matrix33f R = M;
-    for (int it = 0; it < 5; it++) {
-        Matrix33f R_inv, R_invT;
-        Matrix33f::Invert   (&R_inv,  &R);
-        Matrix33f::Transpose(&R_invT, &R_inv);
-        // element-wise: R = 0.5 * (R + R_invT)
-        R.m11 = 0.5f*(R.m11+R_invT.m11); R.m12 = 0.5f*(R.m12+R_invT.m12); R.m13 = 0.5f*(R.m13+R_invT.m13);
-        R.m21 = 0.5f*(R.m21+R_invT.m21); R.m22 = 0.5f*(R.m22+R_invT.m22); R.m23 = 0.5f*(R.m23+R_invT.m23);
-        R.m31 = 0.5f*(R.m31+R_invT.m31); R.m32 = 0.5f*(R.m32+R_invT.m32); R.m33 = 0.5f*(R.m33+R_invT.m33);
-    }
-    result.R = R;
+    // Recover R ∈ SO(3) via SVD-based polar decomposition: R = U V^T
+    float Marr[3][3] = {
+        {M.m11, M.m12, M.m13},
+        {M.m21, M.m22, M.m23},
+        {M.m31, M.m32, M.m33}
+    };
+    polar3(Marr, result.R);
 
     // ── optional state update ────────────────────────────────────────────────
 

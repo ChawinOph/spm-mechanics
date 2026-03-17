@@ -94,8 +94,8 @@ struct VelJacobian {
  * @brief FK result: solved w_i vectors and recovered rotation matrix.
  *
  * The solver minimises f(x) = ½‖F(x)‖² where F encodes the 9 constraint
- * equations.  R is recovered from the solved w_i via polar decomposition
- * to guarantee R ∈ SO(3).
+ * equations.  R is recovered from the solved w_i via SVD-based polar
+ * decomposition (R = U Vᵀ) to guarantee R ∈ SO(3).
  */
 struct FKResult {
     float     w[SPM_LEGS][3]; ///< Solved w_i vectors in world frame [leg][x,y,z]

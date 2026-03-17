@@ -1,173 +1,114 @@
-# Quick Start Guide
+# Quick Start Guide — 3-RRR Spherical Parallel Mechanism
 
-## Setup from Scratch
+## Project Overview
 
-### 1. Install Required Software
+This project implements the kinematics of the **Agile Eye-type 3-RRR Spherical Parallel Mechanism (SPM)**:
 
-#### Windows:
+| Component | Description |
+|-----------|-------------|
+| `src/mSPMModel.cpp` | Core kinematics: IK, FK (Gauss-Newton dogleg), Velocity Jacobian |
+| `include/mSPMModel.h` | `SPMModel` class and result structs (`IKResult`, `FKResult`, `VelJacobian`) |
+| `include/mMatrix.h` / `mMath.h` / `mVect.h` | Lightweight linear algebra (no Eigen dependency) |
+| `src/main.cpp` | Demo entry point |
+| `tests/test_kinematics.cpp` | Kinematics verification tests |
+| `notebooks/spm_kinematics.ipynb` | Symbolic derivation and visualization (Python) |
+
+---
+
+## C++ Build
+
+### Prerequisites
+
+#### Windows
 ```powershell
 # Install MinGW-w64 or Visual Studio Build Tools
 # Install CMake from https://cmake.org/download/
-# Install VS Code from https://code.visualstudio.com/
-# Install Git from https://git-scm.com/
 ```
 
-#### Linux (Ubuntu/Debian):
+#### Linux (Ubuntu/Debian)
 ```bash
-sudo apt update
-sudo apt install build-essential cmake git
+sudo apt update && sudo apt install build-essential cmake git
 ```
 
-#### macOS:
+#### macOS
 ```bash
-# Install Xcode Command Line Tools
 xcode-select --install
-
-# Install CMake
 brew install cmake
 ```
 
-### 2. Setup VS Code
+### Build
 
-1. **Install VS Code**: Download from https://code.visualstudio.com/
-
-2. **Install Extensions** (Ctrl+Shift+X):
-   - C/C++ (Microsoft)
-   - CMake Tools (Microsoft)
-   - CMake (twxs)
-   - Remote - SSH (Microsoft) - for Raspberry Pi
-
-3. **Open Project**:
-   ```bash
-   cd kinematics_project
-   code .
-   ```
-
-### 3. Configure CMake in VS Code
-
-Press `Ctrl+Shift+P` and select:
-- "CMake: Configure" (or it may configure automatically)
-- Select your compiler kit when prompted
-
-### 4. Build Project
-
-**Method 1**: Press `Ctrl+Shift+B`
-
-**Method 2**: Use CMake Tools
-- Press `Ctrl+Shift+P`
-- Type "CMake: Build"
-- Press Enter
-
-**Method 3**: Terminal
 ```bash
 cmake -B build -S .
 cmake --build build
 ```
 
-### 5. Run the Demo
+Or in VS Code: `Ctrl+Shift+P` → "CMake: Build" (or `Ctrl+Shift+B`).
 
-**Method 1**: Press `F5` (builds and debugs)
-
-**Method 2**: Terminal
-```bash
-./build/kinematics_demo
-```
-
-### 6. Run Tests
+### Run the Demo
 
 ```bash
-cd build
-ctest --output-on-failure
+./build/spm_demo
 ```
 
-## Raspberry Pi Deployment
-
-### Method 1: Remote Development (Easiest)
-
-1. **Setup SSH on Pi**:
-   ```bash
-   # On Raspberry Pi
-   sudo raspi-config
-   # Enable SSH in Interface Options
-   ```
-
-2. **Connect from VS Code**:
-   - Press `Ctrl+Shift+P`
-   - Type "Remote-SSH: Connect to Host"
-   - Enter: `pi@<raspberry-pi-ip>`
-   - Open the project folder on Pi
-   - Build and run normally
-
-### Method 2: Copy Executable
+### Run Tests
 
 ```bash
-# Build for Raspberry Pi architecture
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
-cmake --build build
-
-# Copy to Pi
-scp build/kinematics_demo pi@<pi-ip>:~/
-
-# Run on Pi
-ssh pi@<pi-ip>
-./kinematics_demo
+cd build && ctest --output-on-failure
 ```
 
-## Troubleshooting
+---
 
-### CMake can't find compiler
+## Python Notebook
+
+The `notebooks/` directory contains a Jupyter notebook for symbolic kinematics and visualization.
+
 ```bash
-# Verify compiler is installed
-gcc --version
-g++ --version
-
-# If not installed (Linux):
-sudo apt install build-essential
+cd notebooks
+pip install -r requirements.txt
+jupyter notebook spm_kinematics.ipynb
 ```
 
-### Build fails with "cannot find -lstdc++"
-```bash
-# Linux:
-sudo apt install libstdc++-dev
+---
 
-# Or specify C++ standard library
-cmake -B build -DCMAKE_CXX_FLAGS="-stdlib=libc++"
+## Using `SPMModel`
+
+```cpp
+#include "mSPMModel.h"
+
+SPMModel spm;                   // default Coaxial Input SPM architecture
+
+// Inverse Kinematics
+Matrix33f R = /* rotation matrix */;
+IKResult ik = spm.computeIK(R, /*update_config=*/true);
+
+// Forward Kinematics (Gauss-Newton dogleg solver)
+float theta[3] = { ik.theta[0][0], ik.theta[1][0], ik.theta[2][0] };
+FKResult fk = spm.computeFK(theta, /*update_config=*/true, /*init_prev_sol=*/false);
+// fk.R  — recovered rotation matrix (SO(3) via polar decomposition)
+
+// Velocity Jacobian  (omega = J * theta_dot)
+VelJacobian jac = spm.computeVelJacobian();
 ```
 
-### VS Code IntelliSense not working
-1. Press `Ctrl+Shift+P`
-2. Type "C/C++: Edit Configurations (UI)"
-3. Set "Configuration provider" to "CMake Tools"
+Custom architecture — populate `SPMArch` and pass to the constructor:
 
-## Next Steps
-
-1. Study `src/main.cpp` for usage examples
-2. Review `include/kinematics.h` for API documentation
-3. Modify architecture parameters in `RobotArchitecture`
-4. Implement Class II and III FK (currently stubs)
-5. Add your own test cases in `tests/`
-
-## Performance Optimization for Embedded
-
-### Compiler Flags
-Edit CMakeLists.txt:
-```cmake
-# For speed
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native")
-
-# For size (embedded)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Os")
-
-# For Raspberry Pi specific
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mcpu=cortex-a72 -mfloat-abi=hard")
+```cpp
+SPMArch arch;
+arch.gamma_i1[0] = /* ... */;
+// ...
+SPMModel spm(arch);
 ```
 
-### Static Linking (for standalone binary)
-```cmake
-set(CMAKE_EXE_LINKER_FLAGS "-static")
-```
+---
 
-## Useful VS Code Commands
+## VS Code Setup
+
+1. **Install extensions** (`Ctrl+Shift+X`): C/C++ (Microsoft), CMake Tools (Microsoft)
+2. **Open project**: `code .` from the repo root
+3. **Configure**: `Ctrl+Shift+P` → "CMake: Configure", select your compiler kit
+4. **Build**: `Ctrl+Shift+B`
+5. **Debug**: `F5`
 
 | Shortcut | Action |
 |----------|--------|
@@ -175,14 +116,27 @@ set(CMAKE_EXE_LINKER_FLAGS "-static")
 | `F5` | Debug |
 | `Ctrl+F5` | Run without debugging |
 | `F9` | Toggle breakpoint |
-| `F10` | Step over |
-| `F11` | Step into |
-| `Shift+F11` | Step out |
+| `F10` / `F11` | Step over / Step into |
 | `Ctrl+Shift+P` | Command palette |
-| `Ctrl+`` | Toggle terminal |
 
-## Resources
+---
 
-- CMake Documentation: https://cmake.org/documentation/
-- C++ Reference: https://en.cppreference.com/
-- Raspberry Pi Documentation: https://www.raspberrypi.org/documentation/
+## Troubleshooting
+
+**CMake can't find compiler**
+```bash
+gcc --version   # verify installation
+sudo apt install build-essential   # Linux fix
+```
+
+**VS Code IntelliSense not working**
+`Ctrl+Shift+P` → "C/C++: Edit Configurations (UI)" → set "Configuration provider" to "CMake Tools"
+
+---
+
+## Next Steps
+
+1. Review `include/mSPMModel.h` for full API documentation and constraint equations
+2. Study `tests/test_kinematics.cpp` for IK↔FK round-trip verification examples
+3. Customize architecture parameters via `SPMArch` (angles in radians)
+4. Open `notebooks/spm_kinematics.ipynb` for symbolic derivations
