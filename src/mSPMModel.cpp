@@ -831,8 +831,8 @@ static inline float ccwArc(float t1, float t2) {
     return diff - two_pi * floorf(diff / two_pi);
 }
 
-/** @brief Wrap angle to [0, 2π) using floor-based modulo. */
-static inline float wrapAngle(float theta) {
+/** @brief Normalize angle to [0, 2π) using floor-based modulo. */
+static inline float normalizeAngle(float theta) {
     const float two_pi = 2.0f * static_cast<float>(M_PI);
     return theta - two_pi * floorf(theta / two_pi);
 }
@@ -846,7 +846,7 @@ bool SPMModel::linkSurpassOccur(const float test_thetas[SPM_LEGS], float margin)
     // adjusted angles: wrap(theta[i] + eta_i1[i]) → [0, 2π)
     float a[SPM_LEGS];
     for (int i = 0; i < SPM_LEGS; i++) {
-        a[i] = wrapAngle(test_thetas[i] + arch_.eta_i1[i]);
+        a[i] = normalizeAngle(test_thetas[i] + arch_.eta_i1[i]);
     }
 
     const float two_pi = 2.0f * static_cast<float>(M_PI);
