@@ -342,6 +342,89 @@ static bool test_kinematic_constraints_after_ik() {
 }
 
 // ---------------------------------------------------------------------------
+// 7. Link Surpass Detection
+// ---------------------------------------------------------------------------
+
+static const float kDeg = (float)M_PI / 180.f;
+static const float kMargin10 = 10.f * kDeg;  // 10° safety margin used throughout
+
+static bool test_surpass_neutral_no_surpass() {
+    // Neutral configuration — guaranteed valid, no surpass expected
+    SPMModel spm;
+    return !spm.linkSurpassOccur(spm.thetas_neutral, kMargin10);
+}
+
+static bool test_surpass_leg1_passes_leg2() {
+    // (45°,-90°,0°) → adjusted (45°,30°,240°) — leg 1 overtakes leg 2
+    SPMModel spm;
+    float t[SPM_LEGS] = {45.f * kDeg, -90.f * kDeg, 0.f};
+    return spm.linkSurpassOccur(t, kMargin10);
+}
+
+static bool test_surpass_order_preserved() {
+    // (0°,-105°,-60°) → adjusted (0°,15°,180°) — CCW order intact, min gap 15° > 10° margin
+    SPMModel spm;
+    float t[SPM_LEGS] = {0.f, -105.f * kDeg, -60.f * kDeg};
+    return !spm.linkSurpassOccur(t, kMargin10);
+}
+
+static bool test_surpass_margin_collision() {
+    // (45°,-90°,-205°) → adjusted (45°,30°,35°) — no surpass but 5° gap < 10° margin
+    SPMModel spm;
+    float t[SPM_LEGS] = {45.f * kDeg, -90.f * kDeg, -205.f * kDeg};
+    return spm.linkSurpassOccur(t, kMargin10);
+}
+
+static bool test_surpass_uniform_displacement() {
+    // (1°,1°,1°) → adjusted (1°,121°,241°) — evenly spaced, no surpass
+    SPMModel spm;
+    float t[SPM_LEGS] = {1.f * kDeg, 1.f * kDeg, 1.f * kDeg};
+    return !spm.linkSurpassOccur(t, kMargin10);
+}
+
+static bool test_surpass_leg2_passes_leg3() {
+    // (0°,15°,-130°) → adjusted (0°,135°,110°) — leg 2 overtakes leg 3
+    SPMModel spm;
+    float t[SPM_LEGS] = {0.f, 15.f * kDeg, -130.f * kDeg};
+    return spm.linkSurpassOccur(t, kMargin10);
+}
+
+static bool test_surpass_degenerate_coincident() {
+    // (0°,-120°,-60°) → adjusted (0°,0°,180°) — legs 1&2 coincident, shortest arc=0 < margin
+    SPMModel spm;
+    float t[SPM_LEGS] = {0.f, -120.f * kDeg, -60.f * kDeg};
+    return spm.linkSurpassOccur(t, kMargin10);
+}
+
+static bool test_surpass_margin_5deg() {
+    // (0°,-115°,-60°) → adjusted (0°,5°,180°) — 5° gap < 10° margin
+    SPMModel spm;
+    float t[SPM_LEGS] = {0.f, -115.f * kDeg, -60.f * kDeg};
+    return spm.linkSurpassOccur(t, kMargin10);
+}
+
+static bool test_surpass_margin_boundary_10deg() {
+    // (0°,-110°,-60°) → adjusted (0°,10°,180°) — exactly 10°, not strictly less → no flag
+    SPMModel spm;
+    float t[SPM_LEGS] = {0.f, -110.f * kDeg, -60.f * kDeg};
+    return !spm.linkSurpassOccur(t, kMargin10);
+}
+
+static bool test_surpass_wrap_large_positive() {
+    // (720°,720°,720°) → adjusted (0°,120°,240°) after wrap — evenly spaced, no surpass
+    SPMModel spm;
+    float t[SPM_LEGS] = {720.f * kDeg, 720.f * kDeg, 720.f * kDeg};
+    return !spm.linkSurpassOccur(t, kMargin10);
+}
+
+static bool test_surpass_wrap_large_negative() {
+    // (-360°,-360°,-360°) → adjusted (0°,120°,240°) after wrap — no surpass
+    SPMModel spm;
+    float t[SPM_LEGS] = {-360.f * kDeg, -360.f * kDeg, -360.f * kDeg};
+    return !spm.linkSurpassOccur(t, kMargin10);
+}
+
+// ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
 
@@ -384,6 +467,19 @@ int main() {
 
     std::printf("\n[ Kinematic constraints ]\n");
     RUN(test_kinematic_constraints_after_ik);
+
+    std::printf("\n[ Link Surpass Detection ]\n");
+    RUN(test_surpass_neutral_no_surpass);
+    RUN(test_surpass_leg1_passes_leg2);
+    RUN(test_surpass_order_preserved);
+    RUN(test_surpass_margin_collision);
+    RUN(test_surpass_uniform_displacement);
+    RUN(test_surpass_leg2_passes_leg3);
+    RUN(test_surpass_degenerate_coincident);
+    RUN(test_surpass_margin_5deg);
+    RUN(test_surpass_margin_boundary_10deg);
+    RUN(test_surpass_wrap_large_positive);
+    RUN(test_surpass_wrap_large_negative);
 
     std::printf("\n================================================\n");
     std::printf("  Results: %d/%d passed\n", g_passed, g_total);

@@ -15,8 +15,9 @@
 6. [Velocity Jacobian](#6-velocity-jacobian)
 7. [Forward Kinematics (FK)](#7-forward-kinematics-fk)
 8. [Rotation Recovery — SVD Polar Decomposition](#8-rotation-recovery--svd-polar-decomposition)
-9. [Math Utilities](#9-math-utilities)
-10. [Default Architecture Values](#10-default-architecture-values)
+9. [Link Surpass Detection](#9-link-surpass-detection)
+10. [Math Utilities](#10-math-utilities)
+11. [Default Architecture Values](#11-default-architecture-values)
 
 ---
 
@@ -396,7 +397,70 @@ Implementation: `svd3x3()` / `det3()` / `polar3()` → `mSPMModel.cpp:293–415`
 
 ---
 
-## 9. Math Utilities
+## 9. Link Surpass Detection
+
+**Only valid for the coaxial case** ($\gamma_{i1} = 0$ for all legs).
+
+### Problem
+
+In the coaxial SPM the three base joint axes $\mathbf{u}_i$ all share the same $z$-axis. The input angles $\theta_i$ therefore live on a common circle. A **surpass** occurs when one link overtakes another — the cyclic order 1→2→3 is violated — which is a physically infeasible configuration that the controller must avoid.
+
+### Adjusted Angles
+
+Each raw joint angle is shifted by the base azimuth $\eta_{i1}$ and wrapped to $[0,\,2\pi)$:
+
+$$
+a_i = (\theta_i + \eta_{i1}) \bmod 2\pi, \qquad
+x \bmod m \;=\; x - m\left\lfloor\dfrac{x}{m}\right\rfloor
+$$
+
+The floor-based modulo is used (not `fmod`) so the result is always non-negative, correctly handling both negative angles and angles beyond $2\pi$.
+
+### CCW Arc
+
+The counter-clockwise arc from $a_p$ to $a_q$ on the circle is:
+
+$$
+\text{ccw}(a_p, a_q) = (a_q - a_p) \bmod 2\pi \;\in\; [0,\,2\pi)
+$$
+
+### Surpass Test
+
+The three adjusted angles are in valid CCW cyclic order 1→2→3 if and only if:
+
+$$
+\text{ccw}(a_0,a_1) + \text{ccw}(a_1,a_2) + \text{ccw}(a_2,a_0) = 2\pi
+$$
+
+Any other sum indicates at least one surpass. The check uses a tolerance of $10^{-5}$ rad to guard against floating-point rounding.
+
+### Margin Test
+
+After confirming no surpass, the **shortest arc** between each adjacent pair is checked against a minimum separation margin $\delta$:
+
+$$
+\text{shortest}_{ij} = \min\!\bigl(\text{ccw}(a_i,a_j),\; 2\pi - \text{ccw}(a_i,a_j)\bigr) < \delta - \varepsilon
+$$
+
+The $\varepsilon = 10^{-6}$ rad tolerance ($\approx 0.00006°$) prevents false positives from float32 rounding when the gap is computed via a different arithmetic path than the margin (e.g. two legs that are nominally 10° apart may evaluate to $10° - \epsilon$ in float32).
+
+### Known Limitation — Double Surpass
+
+If two pairs surpass simultaneously (e.g. leg 0 passes leg 1 **and** leg 1 passes leg 2), the three CCW arcs can still sum to $2\pi$ and the surpass goes undetected. Robust detection of this case requires tracking pairwise order across timesteps.
+
+**API:**
+
+```cpp
+// Returns true if surpass occurs, or any shortest arc < margin
+bool SPMModel::linkSurpassOccur(const float test_thetas[SPM_LEGS],
+                                 float margin = 0.0f);
+```
+
+Implementation: `SPMModel::linkSurpassOccur()` / `ccwArc()` / `wrapAngle()` → `mSPMModel.cpp`
+
+---
+
+## 10. Math Utilities
 
 ### Quadratic Solver (`mMath.h`)
 
@@ -439,7 +503,7 @@ Template: `TrigResult<T> solveTrigEquation(T A, T B, T C)`
 
 ---
 
-## 10. Default Architecture Values
+## 11. Default Architecture Values
 
 Coaxial Input SPM (3-fold symmetry, legs at 120° apart):
 

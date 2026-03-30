@@ -36,8 +36,8 @@
 #include <math.h>
 #include <stdint.h>
 
-#include "mMatrix.h"
 #include "mMath.h"
+#include "mMatrix.h"
 
 #define SPM_LEGS 3
 
@@ -71,9 +71,9 @@ struct SPMArch {
  * Each leg may have 0, 1, or 2 solutions in theta[i][0..1].
  */
 struct IKResult {
-    float   theta[SPM_LEGS][2];         ///< Solutions per leg (rad)
-    bool    has_solution[SPM_LEGS];     ///< true if at least one real solution exists
-    uint8_t num_solutions[SPM_LEGS];    ///< 0, 1, or 2
+    float theta[SPM_LEGS][2];         ///< Solutions per leg (rad) in [0, 2π)
+    bool has_solution[SPM_LEGS];      ///< true if at least one real solution exists
+    uint8_t num_solutions[SPM_LEGS];  ///< 0, 1, or 2
 };
 
 /**
@@ -84,10 +84,10 @@ struct IKResult {
  *   B_mat[i,i]   = u_i . (w_i x v_i)   (diagonal)
  */
 struct VelJacobian {
-    Matrix33f J;        ///< Forward Jacobian: omega = J * theta_dot
-    Matrix33f A_mat;    ///< Row i = (w_i x v_i)
-    Matrix33f B_mat;    ///< Diagonal: B[i,i] = u_i . (w_i x v_i)
-    bool      is_valid; ///< false when A_mat is singular
+    Matrix33f J;      ///< Forward Jacobian: omega = J * theta_dot
+    Matrix33f A_mat;  ///< Row i = (w_i x v_i)
+    Matrix33f B_mat;  ///< Diagonal: B[i,i] = u_i . (w_i x v_i)
+    bool is_valid;    ///< false when A_mat is singular
 };
 
 /**
@@ -98,11 +98,11 @@ struct VelJacobian {
  * decomposition (R = U Vᵀ) to guarantee R ∈ SO(3).
  */
 struct FKResult {
-    float     w[SPM_LEGS][3]; ///< Solved w_i vectors in world frame [leg][x,y,z]
-    Matrix33f R;               ///< Recovered rotation matrix R ∈ SO(3)
-    bool      success;         ///< true if solver converged with cost ≈ 0
-    int       iterations;      ///< Solver iterations used
-    float     cost;            ///< Final cost ½‖F(x*)‖²
+    float w[SPM_LEGS][3];  ///< Solved w_i vectors in world frame [leg][x,y,z]
+    Matrix33f R;           ///< Recovered rotation matrix R ∈ SO(3)
+    bool success;          ///< true if solver converged with cost ≈ 0
+    int iterations;        ///< Solver iterations used
+    float cost;            ///< Final cost ½‖F(x*)‖²
 };
 
 // ---------------------------------------------------------------------------
@@ -110,7 +110,7 @@ struct FKResult {
 // ---------------------------------------------------------------------------
 
 class SPMModel {
-public:
+   public:
     /**
      * @brief Construct and initialise at neutral pose (R = Identity).
      * @param arch  Architecture parameters (default: Coaxial Input SPM)
@@ -151,43 +151,62 @@ public:
      *                      else use w_i0[] (body-frame vectors) as guess
      * @return FKResult
      */
-    FKResult computeFK(const float theta[SPM_LEGS],
-                       bool update_config  = false,
-                       bool init_prev_sol  = false);
+    FKResult computeFK(const float theta[SPM_LEGS], bool update_config = false,
+                       bool init_prev_sol = false);
 
     // ------------------------------------------------------------------
     // State
     // ------------------------------------------------------------------
 
-    float       theta_i[SPM_LEGS];           ///< Current joint angles (rad)
-    float       thetas_neutral[SPM_LEGS];    ///< Neutral pose joint angles (rad)
-    int         theta_sol_indices[SPM_LEGS]; ///< Active solution branch per leg (0 or 1)
-    VelJacobian J_neutral;                   ///< Jacobian at neutral pose
-    bool        is_initialized;              ///< true after successful construction
+    float theta_i[SPM_LEGS];          ///< Current joint angles (rad)
+    float thetas_neutral[SPM_LEGS];   ///< Neutral pose joint angles (rad)
+    int theta_sol_indices[SPM_LEGS];  ///< Active solution branch per leg (0 or 1)
+    VelJacobian J_neutral;            ///< Jacobian at neutral pose
+    bool is_initialized;              ///< true after successful construction
 
     /** Test kinematic constraints
-     * @brief Verify kinematic constraints 
+     * @brief Verify kinematic constraints
      *
      * Requires computeIK(update_config=true) to be called first.
-    */
+     */
     bool verifyKinematicConstraints();
 
-private:
+    /**
+     * @brief Check whether any coaxial input link has surpassed another,
+     *        and optionally enforce a minimum angular separation (margin).
+     *
+     * The three adjusted angles a[i] = wrap(theta[i] + eta_i1[i]) are placed
+     * on the circle [0, 2π).  The links are in valid CCW cyclic order 1→2→3
+     * iff the three CCW arcs sum to exactly 2π.  Any other sum means at least
+     * one link has overtaken another (surpass).  When no surpass is detected,
+     * the shortest arc between each adjacent pair is compared against margin.
+     *
+     * @note Only valid for the coaxial case (all gamma_i1 == 0).
+     *       Double-surpass (two simultaneous overtakes) is NOT detected.
+     *
+     * @param test_thetas  Raw joint angles (rad) for each leg [SPM_LEGS]
+     * @param margin       Minimum angular separation to enforce (rad, default 0)
+     * @return true  if surpass occurs, or any shortest arc < margin
+     * @return false otherwise (or if gamma_i1 != 0 for any leg)
+     */
+    bool linkSurpassOccur(const float test_thetas[SPM_LEGS], float margin = 0.0f);
+
+   private:
     SPMArch arch_;
 
     // Precomputed per-leg joint-axis vectors
-    mVector3f u_i[SPM_LEGS];    ///< First joint axes (base), fixed in world frame
-    mVector3f w_i0[SPM_LEGS];   ///< Third joint axes in moving platform body frame
+    mVector3f u_i[SPM_LEGS];   ///< First joint axes (base), fixed in world frame
+    mVector3f w_i0[SPM_LEGS];  ///< Third joint axes in moving platform body frame
 
     // Precomputed proximal-link parameterisation coefficients
     // v_i(theta) = [a1*cos+b1*sin+c1, a2*cos+b2*sin+c2, a3*cos+c3]
     float a1_i[SPM_LEGS], b1_i[SPM_LEGS], c1_i[SPM_LEGS];
     float a2_i[SPM_LEGS], b2_i[SPM_LEGS], c2_i[SPM_LEGS];
-    float a3_i[SPM_LEGS],                 c3_i[SPM_LEGS];
+    float a3_i[SPM_LEGS], c3_i[SPM_LEGS];
 
     // Updated by computeIK(update_config=true)
-    mVector3f v_i[SPM_LEGS];    ///< Second joint axes (proximal link tip)
-    mVector3f w_i[SPM_LEGS];    ///< Third joint axes in world frame = R * w_i0
+    mVector3f v_i[SPM_LEGS];  ///< Second joint axes (proximal link tip)
+    mVector3f w_i[SPM_LEGS];  ///< Third joint axes in world frame = R * w_i0
 
     // ------------------------------------------------------------------
     // Private helpers
@@ -197,14 +216,11 @@ private:
     static mVector3f computeJointVector(float eta, float gamma);
 
     /** Compute proximal link tip from joint angle and leg parameters */
-    static mVector3f computeVVector(float theta,
-                                    float a1, float b1, float c1,
-                                    float a2, float b2, float c2,
-                                    float a3, float c3);
+    static mVector3f computeVVector(float theta, float a1, float b1, float c1, float a2, float b2,
+                                    float c2, float a3, float c3);
 
     /** Multiply 3x3 matrix by column vector */
     static mVector3f mat3MulVec(const Matrix33f& M, const mVector3f& v);
-
 };
 
-#endif // SPM_MODEL_H
+#endif  // SPM_MODEL_H

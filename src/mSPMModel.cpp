@@ -811,3 +811,60 @@ FKResult SPMModel::computeFK(const float theta[SPM_LEGS], bool update_config, bo
 
     return result;
 }
+
+// ---------------------------------------------------------------------------
+// Link surpass detection
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief CCW arc from t1 to t2 on [0, 2π).
+ *
+ * Uses the floor-based modulo definition:
+ *   a mod m = a - m * floor(a / m)
+ * which always returns a value in [0, m) for positive m,
+ * correctly handling both negative inputs and inputs beyond 2π.
+ */
+static inline float ccwArc(float t1, float t2) {
+    const float two_pi = 2.0f * static_cast<float>(M_PI);
+    float diff = t2 - t1;
+    // floor-based modulo: diff - two_pi * floor(diff / two_pi)
+    return diff - two_pi * floorf(diff / two_pi);
+}
+
+/** @brief Wrap angle to [0, 2π) using floor-based modulo. */
+static inline float wrapAngle(float theta) {
+    const float two_pi = 2.0f * static_cast<float>(M_PI);
+    return theta - two_pi * floorf(theta / two_pi);
+}
+
+bool SPMModel::linkSurpassOccur(const float test_thetas[SPM_LEGS], float margin) {
+    // only valid for coaxial case
+    for (int i = 0; i < SPM_LEGS; i++) {
+        if (arch_.gamma_i1[i] != 0.0f) return false;
+    }
+
+    // adjusted angles: wrap(theta[i] + eta_i1[i]) → [0, 2π)
+    float a[SPM_LEGS];
+    for (int i = 0; i < SPM_LEGS; i++) {
+        a[i] = wrapAngle(test_thetas[i] + arch_.eta_i1[i]);
+    }
+
+    const float two_pi = 2.0f * static_cast<float>(M_PI);
+    float ccw12 = ccwArc(a[0], a[1]);
+    float ccw23 = ccwArc(a[1], a[2]);
+    float ccw31 = ccwArc(a[2], a[0]);
+
+    // surpass: links not in CCW cyclic order 1→2→3
+    float sum = ccw12 + ccw23 + ccw31;
+    if (fabsf(sum - two_pi) > 1e-5f) return true;
+
+    // margin: shortest arc between each pair must be >= margin
+    float arcs[3] = {ccw12, ccw23, ccw31};
+    float abs_margin = fabsf(margin);
+    for (int i = 0; i < 3; i++) {
+        float shortest = (arcs[i] < two_pi - arcs[i]) ? arcs[i] : two_pi - arcs[i];
+        if (shortest < abs_margin - 1e-6f) return true;
+    }
+
+    return false;
+}

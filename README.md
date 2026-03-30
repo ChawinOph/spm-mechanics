@@ -12,7 +12,7 @@
 
 ---
 
-C++ implementation of forward and inverse kinematics for a Coaxial Input 3-RRR spherical parallel mechanism (Agile Eye-type), with a Python/Jupyter companion for symbolic derivation and numerical verification.
+C++ implementation of forward and inverse kinematics for a Coaxial Input 3-RRR spherical parallel mechanism (Agile Eye-type), with a Python/Jupyter companion for symbolic derivation and numerical verification. See [KINEMATICS.md](KINEMATICS.md) for the full mathematical reference.
 
 ## Features
 
@@ -27,6 +27,7 @@ C++ implementation of forward and inverse kinematics for a Coaxial Input 3-RRR s
 spm_project/
 ├── CMakeLists.txt
 ├── README.md
+├── KINEMATICS.md    # Full mathematical reference
 ├── include/
 │   ├── mMath.h          # Quadratic & trigonometric equation solvers
 │   ├── mVect.h          # mVector2/3/4 templated vector types
@@ -67,12 +68,42 @@ FKResult fk = spm.computeFK(spm.theta_i,
 // fk.w[i]     — solved w_i vectors in world frame
 // fk.success  — true if solver converged
 // fk.cost     — final cost ½‖F(x*)‖² (should be ~0)
+
+// Link surpass / collision check (coaxial case only)
+bool safe = !spm.linkSurpassOccur(spm.theta_i, /*margin=*/0.175f);  // 10° margin
+```
+
+Custom architecture — populate `SPMArch` and pass to the constructor:
+
+```cpp
+SPMArch arch;
+arch.eta_i1[0]   = 0.f;
+arch.gamma_i1[0] = 0.f;
+// ... fill remaining fields ...
+SPMModel spm(arch);
 ```
 
 ## Prerequisites
 
-- C++17 compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
-- CMake 3.10 or higher
+### Windows
+
+```powershell
+# Install MinGW-w64 or Visual Studio Build Tools
+# Install CMake from https://cmake.org/download/
+```
+
+### Linux (Ubuntu/Debian)
+
+```bash
+sudo apt update && sudo apt install build-essential cmake git
+```
+
+### macOS
+
+```bash
+xcode-select --install
+brew install cmake
+```
 
 ## Building
 
@@ -92,6 +123,9 @@ cd build && ctest --output-on-failure
 
 # Run tests — full printed output (timing + per-test results)
 cd build && ctest -V
+
+# Run only the kinematics test
+cd build && ctest -V -R KinematicsTest
 
 # Run test executable directly (all stdout visible)
 ./build/tests/test_kinematics        # Linux / macOS
@@ -242,16 +276,44 @@ assert not link_surpass_occur([DEG(360), DEG(480), DEG(600)])  # same as 0,120,2
 # assert link_surpass_occur([DEG(150), DEG(90), DEG(30)])  # fails: sum=2π but all surpassed
 ```
 
-## VS Code Shortcuts
+## VS Code Setup
+
+1. **Install extensions** (`Ctrl+Shift+X`): C/C++ (Microsoft), CMake Tools (Microsoft)
+2. **Open project**: `code .` from the repo root
+3. **Configure**: `Ctrl+Shift+P` → "CMake: Configure", select your compiler kit
+4. **Build**: `Ctrl+Shift+B`
+5. **Debug**: `F5`
 
 | Shortcut | Action |
 |---|---|
 | `Ctrl+Shift+B` | Build project |
 | `F5` | Build and debug |
+| `Ctrl+F5` | Run without debugging |
 | `Ctrl+Shift+P` | Command palette |
 | `F9` | Toggle breakpoint |
 | `F10` | Step over |
 | `F11` | Step into |
+
+## Troubleshooting
+
+### CMake can't find compiler
+
+```bash
+gcc --version                          # verify installation
+sudo apt install build-essential       # Linux fix
+```
+
+### VS Code IntelliSense not working
+
+`Ctrl+Shift+P` → "C/C++: Edit Configurations (UI)" → set "Configuration provider" to "CMake Tools"
+
+## Next Steps
+
+1. Review [include/mSPMModel.h](include/mSPMModel.h) for full API documentation
+2. Study [tests/test_kinematics.cpp](tests/test_kinematics.cpp) for IK↔FK round-trip examples
+3. Customize architecture parameters via `SPMArch` (all angles in radians)
+4. Open [notebooks/spm_kinematics.ipynb](notebooks/spm_kinematics.ipynb) for symbolic derivations
+5. See [KINEMATICS.md](KINEMATICS.md) for the full mathematical reference
 
 ## References
 
