@@ -35,6 +35,8 @@ Each leg $i$ has three joint axes:
 
 $\mathbf{w}_{i0}$ is the third joint axis expressed in the **moving platform body frame** (constant).
 
+![image info](./notebooks/3RRR_spm_kinematic_diagram_annotated.png)
+
 ---
 
 ## 2. Architecture Parameters
