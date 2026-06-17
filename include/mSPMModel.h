@@ -55,8 +55,8 @@ struct SPMArch {
     float eta_i2[SPM_LEGS];    ///< Moving platform polar angles        (rad)
     float gamma_i1[SPM_LEGS];  ///< Base platform tilt angles           (rad)
     float gamma_i2[SPM_LEGS];  ///< Moving platform tilt angles         (rad)
-    float alpha_i1[SPM_LEGS];  ///< Proximal link half-angles           (rad)
-    float alpha_i2[SPM_LEGS];  ///< Distal link half-angles             (rad)
+    float alpha_i1[SPM_LEGS];  ///< Proximal curved-link angles          (rad)
+    float alpha_i2[SPM_LEGS];  ///< Distal curved-link angles            (rad)
 
     SPMArch();  ///< Default Coaxial Input SPM parameters
 };
